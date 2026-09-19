@@ -47,7 +47,7 @@ var FaultEventTransitions = map[string]map[string]bool{
 }
 
 var MitigationActionTransitions = map[string]map[string]bool{
-	"draft":     {"confirmed": true, "executing": true},
+	"draft":     {"confirmed": true},
 	"confirmed": {"executing": true, "completed": true, "draft": true},
 	"executing": {"completed": true, "failed": true, "confirmed": true},
 	"completed": {"failed": true, "executing": true},

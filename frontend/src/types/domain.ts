@@ -19,6 +19,14 @@ export interface DomainRecord {
   updatedAt: string;
 }
 
+export interface ActionInterlock {
+  action: DomainRecord;
+  fault: DomainRecord | null;
+  inverter: DomainRecord | null;
+  failureReason?: string;
+  canConfirm: boolean;
+}
+
 export interface PageMeta { page: number; pageSize: number; total: number }
 export interface ApiEnvelope<T> { data: T; error?: string; message?: string; meta?: PageMeta }
 export interface UserSession { token: string; username: string; displayName: string; role: string; expiresIn: number }

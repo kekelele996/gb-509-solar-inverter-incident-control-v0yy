@@ -14,6 +14,7 @@ type MitigationActionRepository interface {
 	Get(context.Context, uint) (model.MitigationAction, error)
 	Create(context.Context, *model.MitigationAction) error
 	Update(context.Context, uint, uint, *model.MitigationAction) error
+	UpdateStatus(context.Context, uint, uint, string) error
 	Delete(context.Context, uint) error
 	CountByStatus(context.Context) (map[string]int64, error)
 }
@@ -37,6 +38,9 @@ func (r *mitigationActionRepository) Create(ctx context.Context, item *model.Mit
 }
 func (r *mitigationActionRepository) Update(ctx context.Context, id, version uint, item *model.MitigationAction) error {
 	return r.store.Update(ctx, id, version, item)
+}
+func (r *mitigationActionRepository) UpdateStatus(ctx context.Context, id, version uint, status string) error {
+	return r.store.UpdateStatus(ctx, id, version, status)
 }
 func (r *mitigationActionRepository) Delete(ctx context.Context, id uint) error {
 	return r.store.Delete(ctx, id)

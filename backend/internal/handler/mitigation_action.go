@@ -22,6 +22,7 @@ func (h *MitigationActionHandler) Register(group *gin.RouterGroup) {
 	resource := group.Group("/actions")
 	resource.GET("", h.list)
 	resource.GET("/:id", h.get)
+	resource.GET("/:id/interlock", h.interlock)
 	resource.POST("", middleware.RequireMinimumRole("operator"), h.create)
 	resource.PUT("/:id", middleware.RequireMinimumRole("operator"), h.update)
 	resource.POST("/:id/transition", middleware.RequireMinimumRole("operator"), h.transition)
@@ -49,6 +50,19 @@ func (h *MitigationActionHandler) get(c *gin.Context) {
 		return
 	}
 	util.OK(c, item)
+}
+
+func (h *MitigationActionHandler) interlock(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	view, err := h.service.Interlock(c.Request.Context(), id)
+	if err != nil {
+		handleError(c, err)
+		return
+	}
+	util.OK(c, view)
 }
 
 func (h *MitigationActionHandler) create(c *gin.Context) {

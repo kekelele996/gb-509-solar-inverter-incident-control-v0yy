@@ -10,6 +10,8 @@ import { UiButton } from './common/UiButton';
 import { SeverityTag } from './common/SeverityTag';
 import { ActionDrawer } from './common/ActionDrawer';
 import { getSession } from '../api/client';
+import { getActionInterlock } from '../api/mitigation-action';
+import type { ActionInterlock } from '../types/domain';
 
 export function EntityPage({ config, useStore }: { config: EntityConfig; useStore: EntityStore }) {
   const { items, meta, loading, error, load, createRecord, transition } = useStore();
@@ -17,9 +19,27 @@ export function EntityPage({ config, useStore }: { config: EntityConfig; useStor
   const [showCreate, setShowCreate] = useState(false);
   const [pending, setPending] = useState<{ item: DomainRecord; status: string } | null>(null);
   const [remoteConfirm, setRemoteConfirm] = useState(false);
+  const [interlock, setInterlock] = useState<ActionInterlock | null>(null);
+  const [interlockLoading, setInterlockLoading] = useState(false);
   const role = getSession()?.role || 'viewer';
   const canWrite = ['operator', 'reviewer', 'admin'].includes(role);
   const isRemoteAction = ['faultEvent', 'mitigationAction'].includes(config.key);
+  useEffect(() => {
+    const pendingItem = pending?.item;
+    if (!remoteConfirm || config.key !== 'mitigationAction' || pending?.status !== 'executing' || !pendingItem?.id) {
+      setInterlock(null);
+      return;
+    }
+    let active = true;
+    setInterlockLoading(true);
+    getActionInterlock(pendingItem.id)
+      .then((result) => { if (active) setInterlock(result.data); })
+      .catch((error: unknown) => {
+        if (active) setInterlock({ action: pendingItem, fault: null, inverter: null, canConfirm: false, failureReason: error instanceof Error ? error.message : '联锁状态读取失败' });
+      })
+      .finally(() => { if (active) setInterlockLoading(false); });
+    return () => { active = false; };
+  }, [remoteConfirm, config.key, pending?.status, pending?.item.id]);
   useEffect(() => { void load(config.path); }, [config.path, load]);
   const highRisk = useMemo(() => items.filter((item) => ['high', 'critical'].includes(item.riskLevel)).length, [items]);
   const createDemo = async () => {
@@ -31,8 +51,28 @@ export function EntityPage({ config, useStore }: { config: EntityConfig; useStor
   };
   const finalizeTransition = async () => {
     if (!pending) return;
-    try { await transition(config.path, pending.item, pending.status); setPending(null); setRemoteConfirm(false); }
-    catch { setRemoteConfirm(false); }
+    try {
+      await transition(config.path, pending.item, pending.status);
+      setPending(null);
+      setRemoteConfirm(false);
+      setInterlock(null);
+    } catch (error) {
+      const failureReason = error instanceof Error ? error.message : '远程确认失败，请刷新后重试';
+      if (config.key === 'mitigationAction' && pending.status === 'executing') {
+        try {
+          const refreshed = await getActionInterlock(pending.item.id);
+          setInterlock({ ...refreshed.data, failureReason: refreshed.data.failureReason || failureReason, canConfirm: false });
+          const latest = refreshed.data.action;
+          setPending({ item: latest, status: pending.status });
+        } catch {
+          setInterlock({ action: pending.item, fault: null, inverter: null, canConfirm: false, failureReason });
+        }
+      } else {
+        setRemoteConfirm(false);
+        setInterlock(null);
+      }
+      await load(config.path);
+    }
   };
   return <main className="workspace">
     <header className="page-header"><div><p className="eyebrow">业务工作台</p><h1>{config.label}</h1><p>统一管理{config.label}的状态、风险、证据与责任人。</p></div>{canWrite && <UiButton onClick={() => setShowCreate(true)}>新增{config.label}</UiButton>}</header>
@@ -46,6 +86,6 @@ export function EntityPage({ config, useStore }: { config: EntityConfig; useStor
     </tbody></table>{loading && <div className="loading">正在同步业务数据…</div>}</section>
     <ConfirmDialog open={showCreate} title={`新增${config.label}`} onCancel={() => setShowCreate(false)} onConfirm={() => { void createDemo().catch(() => undefined); }}><p>将创建一条包含完整责任人、风险和证据信息的演示记录。</p></ConfirmDialog>
     <ConfirmDialog open={Boolean(pending) && !remoteConfirm} title="确认状态迁移" onCancel={() => setPending(null)} onConfirm={() => { if (isRemoteAction) setRemoteConfirm(true); else void finalizeTransition(); }}><p>状态迁移会写入审计日志，且使用版本号避免并发覆盖。</p><strong>{pending?.item.status} → {pending?.status}</strong></ConfirmDialog>
-    <ActionDrawer open={remoteConfirm} item={pending?.item || null} target={pending?.status || ''} onCancel={() => setRemoteConfirm(false)} onConfirm={() => void finalizeTransition()} />
+    <ActionDrawer open={remoteConfirm} item={pending?.item || null} target={pending?.status || ''} interlock={interlock} interlockLoading={interlockLoading} onCancel={() => { setRemoteConfirm(false); setInterlock(null); }} onConfirm={() => void finalizeTransition()} />
   </main>;
 }

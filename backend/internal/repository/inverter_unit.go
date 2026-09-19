@@ -14,6 +14,8 @@ type InverterUnitRepository interface {
 	Get(context.Context, uint) (model.InverterUnit, error)
 	Create(context.Context, *model.InverterUnit) error
 	Update(context.Context, uint, uint, *model.InverterUnit) error
+	UpdateStatus(context.Context, uint, uint, string) error
+	GetByRelatedCodeAndFacility(context.Context, string, string) (model.InverterUnit, error)
 	Delete(context.Context, uint) error
 	CountByStatus(context.Context) (map[string]int64, error)
 }
@@ -37,6 +39,12 @@ func (r *inverterUnitRepository) Create(ctx context.Context, item *model.Inverte
 }
 func (r *inverterUnitRepository) Update(ctx context.Context, id, version uint, item *model.InverterUnit) error {
 	return r.store.Update(ctx, id, version, item)
+}
+func (r *inverterUnitRepository) UpdateStatus(ctx context.Context, id, version uint, status string) error {
+	return r.store.UpdateStatus(ctx, id, version, status)
+}
+func (r *inverterUnitRepository) GetByRelatedCodeAndFacility(ctx context.Context, relatedCode, facility string) (model.InverterUnit, error) {
+	return r.store.GetByRelatedCodeAndFacility(ctx, relatedCode, facility)
 }
 func (r *inverterUnitRepository) Delete(ctx context.Context, id uint) error {
 	return r.store.Delete(ctx, id)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/blueship581/solar-inverter-incident-control/backend/internal/dto"
 	"gorm.io/gorm"
@@ -28,7 +29,7 @@ func NewStore[T any](db *gorm.DB) *Store[T] { return &Store[T]{db: db} }
 
 func (s *Store[T]) List(ctx context.Context, query dto.PageQuery) (Page[T], error) {
 	page, pageSize := normalizePage(query.Page, query.PageSize)
-	db := s.db.WithContext(ctx).Model(new(T))
+	db := dbFromContext(ctx, s.db).Model(new(T))
 	if search := strings.TrimSpace(strings.ToLower(query.Search)); search != "" {
 		wildcard := "%" + search + "%"
 		db = db.Where("LOWER(code) LIKE ? OR LOWER(name) LIKE ?", wildcard, wildcard)
@@ -48,16 +49,16 @@ func (s *Store[T]) List(ctx context.Context, query dto.PageQuery) (Page[T], erro
 
 func (s *Store[T]) Get(ctx context.Context, id uint) (T, error) {
 	var item T
-	err := s.db.WithContext(ctx).First(&item, id).Error
+	err := dbFromContext(ctx, s.db).First(&item, id).Error
 	return item, err
 }
 
 func (s *Store[T]) Create(ctx context.Context, item *T) error {
-	return s.db.WithContext(ctx).Create(item).Error
+	return dbFromContext(ctx, s.db).Create(item).Error
 }
 
 func (s *Store[T]) Update(ctx context.Context, id, expectedVersion uint, item *T) error {
-	result := s.db.WithContext(ctx).Model(new(T)).
+	result := dbFromContext(ctx, s.db).Model(new(T)).
 		Where("id = ? AND version = ?", id, expectedVersion).
 		Select("*").Omit("id", "code", "created_at", "deleted_at").Updates(item)
 	if result.Error != nil {
@@ -70,7 +71,7 @@ func (s *Store[T]) Update(ctx context.Context, id, expectedVersion uint, item *T
 }
 
 func (s *Store[T]) Delete(ctx context.Context, id uint) error {
-	result := s.db.WithContext(ctx).Delete(new(T), id)
+	result := dbFromContext(ctx, s.db).Delete(new(T), id)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -81,7 +82,7 @@ func (s *Store[T]) Delete(ctx context.Context, id uint) error {
 }
 
 func (s *Store[T]) CountByStatus(ctx context.Context) (map[string]int64, error) {
-	rows, err := s.db.WithContext(ctx).Model(new(T)).
+	rows, err := dbFromContext(ctx, s.db).Model(new(T)).
 		Select("status, COUNT(*) AS total").Group("status").Rows()
 	if err != nil {
 		return nil, err
@@ -97,6 +98,31 @@ func (s *Store[T]) CountByStatus(ctx context.Context) (map[string]int64, error) 
 		counts[status] = total
 	}
 	return counts, rows.Err()
+}
+
+func (s *Store[T]) GetByRelatedCodeAndFacility(ctx context.Context, relatedCode, facility string) (T, error) {
+	var item T
+	err := dbFromContext(ctx, s.db).
+		Where("related_code = ? AND LOWER(facility) = LOWER(?)", relatedCode, facility).
+		Order("id ASC").First(&item).Error
+	return item, err
+}
+
+func (s *Store[T]) UpdateStatus(ctx context.Context, id, expectedVersion uint, status string) error {
+	result := dbFromContext(ctx, s.db).Model(new(T)).
+		Where("id = ? AND version = ? AND status <> ?", id, expectedVersion, status).
+		Updates(map[string]any{
+			"status":     status,
+			"version":    expectedVersion + 1,
+			"updated_at": time.Now().UTC(),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrVersionConflict
+	}
+	return nil
 }
 
 func normalizePage(page, pageSize int) (int, int) {

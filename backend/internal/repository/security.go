@@ -26,21 +26,21 @@ func NewSecurityRepository(db *gorm.DB) SecurityRepository {
 
 func (r *securityRepository) FindUserByUsername(ctx context.Context, username string) (model.User, error) {
 	var user model.User
-	err := r.db.WithContext(ctx).Where("username = ? AND active = ?", username, true).First(&user).Error
+	err := dbFromContext(ctx, r.db).Where("username = ? AND active = ?", username, true).First(&user).Error
 	return user, err
 }
 
 func (r *securityRepository) CreateUser(ctx context.Context, user *model.User) error {
-	return r.db.WithContext(ctx).Create(user).Error
+	return dbFromContext(ctx, r.db).Create(user).Error
 }
 
 func (r *securityRepository) CountUsers(ctx context.Context) (int64, error) {
 	var total int64
-	return total, r.db.WithContext(ctx).Model(&model.User{}).Count(&total).Error
+	return total, dbFromContext(ctx, r.db).Model(&model.User{}).Count(&total).Error
 }
 
 func (r *securityRepository) AppendAudit(ctx context.Context, log *model.AuditLog) error {
-	return r.db.WithContext(ctx).Create(log).Error
+	return dbFromContext(ctx, r.db).Create(log).Error
 }
 
 func (r *securityRepository) ListAudits(ctx context.Context, page, pageSize int, search string) ([]model.AuditLog, int64, error) {

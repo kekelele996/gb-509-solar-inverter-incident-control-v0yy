@@ -14,6 +14,8 @@ type FaultEventRepository interface {
 	Get(context.Context, uint) (model.FaultEvent, error)
 	Create(context.Context, *model.FaultEvent) error
 	Update(context.Context, uint, uint, *model.FaultEvent) error
+	UpdateStatus(context.Context, uint, uint, string) error
+	GetByRelatedCodeAndFacility(context.Context, string, string) (model.FaultEvent, error)
 	Delete(context.Context, uint) error
 	CountByStatus(context.Context) (map[string]int64, error)
 }
@@ -37,6 +39,12 @@ func (r *faultEventRepository) Create(ctx context.Context, item *model.FaultEven
 }
 func (r *faultEventRepository) Update(ctx context.Context, id, version uint, item *model.FaultEvent) error {
 	return r.store.Update(ctx, id, version, item)
+}
+func (r *faultEventRepository) UpdateStatus(ctx context.Context, id, version uint, status string) error {
+	return r.store.UpdateStatus(ctx, id, version, status)
+}
+func (r *faultEventRepository) GetByRelatedCodeAndFacility(ctx context.Context, relatedCode, facility string) (model.FaultEvent, error) {
+	return r.store.GetByRelatedCodeAndFacility(ctx, relatedCode, facility)
 }
 func (r *faultEventRepository) Delete(ctx context.Context, id uint) error {
 	return r.store.Delete(ctx, id)
