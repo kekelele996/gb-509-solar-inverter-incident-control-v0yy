@@ -12,6 +12,7 @@ import (
 type FaultEventRepository interface {
 	List(context.Context, dto.PageQuery) (Page[model.FaultEvent], error)
 	Get(context.Context, uint) (model.FaultEvent, error)
+	FindByLink(context.Context, string, string) (model.FaultEvent, error)
 	Create(context.Context, *model.FaultEvent) error
 	Update(context.Context, uint, uint, *model.FaultEvent) error
 	Delete(context.Context, uint) error
@@ -31,6 +32,9 @@ func (r *faultEventRepository) List(ctx context.Context, q dto.PageQuery) (Page[
 }
 func (r *faultEventRepository) Get(ctx context.Context, id uint) (model.FaultEvent, error) {
 	return r.store.Get(ctx, id)
+}
+func (r *faultEventRepository) FindByLink(ctx context.Context, relatedCode, facility string) (model.FaultEvent, error) {
+	return r.store.FindByLink(ctx, relatedCode, facility)
 }
 func (r *faultEventRepository) Create(ctx context.Context, item *model.FaultEvent) error {
 	return r.store.Create(ctx, item)

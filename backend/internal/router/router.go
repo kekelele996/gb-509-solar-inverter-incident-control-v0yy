@@ -35,7 +35,7 @@ func New(cfg config.Config, db *gorm.DB, redisClient *redis.Client, logger *slog
 	solarSiteService := service.NewSolarSiteService(solarSiteRepository, securityService)
 	inverterUnitService := service.NewInverterUnitService(inverterUnitRepository, securityService)
 	faultEventService := service.NewFaultEventService(faultEventRepository, securityService)
-	mitigationActionService := service.NewMitigationActionService(mitigationActionRepository, securityService)
+	mitigationActionService := service.NewMitigationActionService(db, mitigationActionRepository, faultEventRepository, inverterUnitRepository, securityService)
 	solarSiteHandler := handler.NewSolarSiteHandler(solarSiteService)
 	inverterUnitHandler := handler.NewInverterUnitHandler(inverterUnitService)
 	faultEventHandler := handler.NewFaultEventHandler(faultEventService)

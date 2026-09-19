@@ -1,22 +1,26 @@
 
 import { create } from 'zustand';
 import { request } from '../api/client';
-import type { ApiEnvelope, DomainRecord, PageMeta } from '../types/domain';
+import { confirmMitigationAction } from '../api/mitigation-action';
+import type { ApiEnvelope, DomainRecord, InterlockConfirmResult, PageMeta } from '../types/domain';
 
 export interface EntityState {
   items: DomainRecord[];
   meta: PageMeta;
   loading: boolean;
   error: string;
+  interlock: InterlockConfirmResult | null;
   load: (path: string, search?: string) => Promise<void>;
   createRecord: (path: string, input: Partial<DomainRecord>) => Promise<void>;
   transition: (path: string, item: DomainRecord, status: string) => Promise<void>;
+  confirmInterlock: (path: string, item: DomainRecord) => Promise<void>;
+  clearInterlock: () => void;
 }
 export type EntityStore = ReturnType<typeof createEntityStore>;
 
 export function createEntityStore() {
   return create<EntityState>((set, get) => ({
-    items: [], meta: { page: 1, pageSize: 20, total: 0 }, loading: false, error: '',
+    items: [], meta: { page: 1, pageSize: 20, total: 0 }, loading: false, error: '', interlock: null,
     load: async (path, search = '') => {
       set({ loading: true, error: '' });
       try {
@@ -38,5 +42,14 @@ export function createEntityStore() {
         await get().load(path);
       } catch (error) { set({ error: error instanceof Error ? error.message : String(error), loading: false }); throw error; }
     },
+    confirmInterlock: async (path, item) => {
+      set({ loading: true, error: '', interlock: null });
+      try {
+        const result = await confirmMitigationAction(item.id, item.version, '前端工作台人工确认');
+        set({ interlock: result.data });
+        await get().load(path);
+      } catch (error) { set({ error: error instanceof Error ? error.message : String(error), loading: false }); throw error; }
+    },
+    clearInterlock: () => set({ interlock: null }),
   }));
 }

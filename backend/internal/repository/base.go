@@ -52,6 +52,18 @@ func (s *Store[T]) Get(ctx context.Context, id uint) (T, error) {
 	return item, err
 }
 
+// FindByLink locates the most recently updated record matching the business
+// link (关联编号 + 场站). It backs the fault-interlock confirm, which joins an
+// action to its fault event and inverter through these two fields.
+func (s *Store[T]) FindByLink(ctx context.Context, relatedCode, facility string) (T, error) {
+	var item T
+	err := s.db.WithContext(ctx).
+		Where("related_code = ? AND facility = ?", relatedCode, facility).
+		Order("updated_at DESC, id DESC").
+		First(&item).Error
+	return item, err
+}
+
 func (s *Store[T]) Create(ctx context.Context, item *T) error {
 	return s.db.WithContext(ctx).Create(item).Error
 }

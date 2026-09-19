@@ -12,6 +12,7 @@ import (
 type InverterUnitRepository interface {
 	List(context.Context, dto.PageQuery) (Page[model.InverterUnit], error)
 	Get(context.Context, uint) (model.InverterUnit, error)
+	FindByLink(context.Context, string, string) (model.InverterUnit, error)
 	Create(context.Context, *model.InverterUnit) error
 	Update(context.Context, uint, uint, *model.InverterUnit) error
 	Delete(context.Context, uint) error
@@ -31,6 +32,9 @@ func (r *inverterUnitRepository) List(ctx context.Context, q dto.PageQuery) (Pag
 }
 func (r *inverterUnitRepository) Get(ctx context.Context, id uint) (model.InverterUnit, error) {
 	return r.store.Get(ctx, id)
+}
+func (r *inverterUnitRepository) FindByLink(ctx context.Context, relatedCode, facility string) (model.InverterUnit, error) {
+	return r.store.FindByLink(ctx, relatedCode, facility)
 }
 func (r *inverterUnitRepository) Create(ctx context.Context, item *model.InverterUnit) error {
 	return r.store.Create(ctx, item)
